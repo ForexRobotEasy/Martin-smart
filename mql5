@@ -1,0 +1,165 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                              MartinSmart.mq5     |
+//|                        Copyright 2022, Forex Robot Easy Team     |
+//|                                            forexroboteasy.com    |
+//+------------------------------------------------------------------+
+#include <Trade\Trade.mqh>
+#include <Trade\PositionInfo.mqh>
+#include <Expert\Expert.mqh>
+#include <Expert\SignalEvent.mqh>
+#include <Expert\StochasticSignal.mqh>
+#include <Expert\BreakevenOptions.mqh>
+#include <Expert\MarketCorrection.mqh>
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Initialize the trade module
+    if (!Trade.Init())
+    {
+        Print('Failed to initialize the trade module');
+        return INIT_FAILED;
+    }
+
+    // Initialize the stochastic signal
+    if (!StochasticSignal.Init())
+    {
+        Print('Failed to initialize the stochastic signal');
+        return INIT_FAILED;
+    }
+
+    // Initialize the breakeven options
+    if (!BreakevenOptions.Init())
+    {
+        Print('Failed to initialize the breakeven options');
+        return INIT_FAILED;
+    }
+
+    // Initialize the market correction
+    if (!MarketCorrection.Init())
+    {
+        Print('Failed to initialize the market correction');
+        return INIT_FAILED;
+    }
+
+    return INIT_SUCCEEDED;
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Deinitialize the trade module
+    Trade.Deinit();
+
+    // Deinitialize the stochastic signal
+    StochasticSignal.Deinit();
+
+    // Deinitialize the breakeven options
+    BreakevenOptions.Deinit();
+
+    // Deinitialize the market correction
+    MarketCorrection.Deinit();
+}
+
+//+------------------------------------------------------------------+
+//| Expert start function                                            |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    // Check if the expert is in manual or automatic trading mode
+    if (Expert.TradingMode() == MODE_AUTOMATIC)
+    {
+        // Execute trades based on pre-defined settings
+        ExecuteAutomaticTrades();
+    }
+    else
+    {
+        // Act as an assistant in manual trading
+        ExecuteManualTrades();
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Execute automatic trades                                          |
+//+------------------------------------------------------------------+
+void ExecuteAutomaticTrades()
+{
+    // Check for potential entry signals using stochastic
+    if (StochasticSignal.HasEntrySignal())
+    {
+        // Calculate the appropriate trade size based on the martingale principle
+        double tradeSize = CalculateTradeSize();
+
+        // Place the trade with the calculated trade size
+        Trade.PlaceOrder(TradeType::BUY, tradeSize);
+    }
+
+    // Check for breakeven options
+    if (BreakevenOptions.ShouldTransferToBreakeven())
+    {
+        // Execute the selected breakeven option
+        BreakevenOptions.ExecuteBreakevenOption();
+    }
+
+    // Capitalize on market corrections
+    if (MarketCorrection.HasMarketCorrection())
+    {
+        // Close negative trades and generate profits
+        MarketCorrection.CloseNegativeTrades();
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Execute manual trades                                             |
+//+------------------------------------------------------------------+
+void ExecuteManualTrades()
+{
+    // Display necessary information to assist in manual trading
+    DisplayTradingInformation();
+
+    // Execute trades based on user inputs
+    if (SignalEvent.Signal == SignalType::BUY)
+    {
+        // Place a buy order
+        Trade.PlaceOrder(TradeType::BUY, SignalEvent.TradeSize);
+    }
+    else if (SignalEvent.Signal == SignalType::SELL)
+    {
+        // Place a sell order
+        Trade.PlaceOrder(TradeType::SELL, SignalEvent.TradeSize);
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Calculate the trade size based on the martingale principle       |
+//+------------------------------------------------------------------+
+double CalculateTradeSize()
+{
+    double tradeSize = 0.01;  // Initial trade size
+
+    // Adjust the trade size based on the outcome of previous trades
+    if (PositionInfo.TotalProfit() < 0)
+    {
+        // Double the trade size if previous trades were losses
+        tradeSize *= 2;
+    }
+
+    return tradeSize;
+}
+
+//+------------------------------------------------------------------+
+//| Display necessary information for manual trading                  |
+//+------------------------------------------------------------------+
+void DisplayTradingInformation()
+{
+    // Display the current signal type and trade size
+    Print('Signal: ', SignalEvent.Signal);
+    Print('Trade Size: ', SignalEvent.TradeSize);
+}
+
+//+------------------------------------------------------------------+
